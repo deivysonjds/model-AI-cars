@@ -1,14 +1,15 @@
 from ultralytics import YOLO
+from time import sleep
 import cv2
-#import serial
+import serial
 
 model = YOLO("runs/detect/train2/weights/best.pt")
-cap = cv2.VideoCapture(1)
+cap = cv2.VideoCapture(0)
 
-#arduino = serial.Serial('COM5', 9600, timeout=1)
-#arduino.reset_input_buffer()
-
-CONF_THRESHOLD = 0.70  # nível mínimo de confiança
+arduino = serial.Serial('COM5', 9600, timeout=1)
+sleep(2)
+time_class: int = 1
+CONF_THRESHOLD = 0.60  # nível mínimo de confiança
 
 while True:
     ret, frame = cap.read()
@@ -18,7 +19,7 @@ while True:
     # Faz a detecção
     results = model(frame)[0]
 
-    count = 0  # contador de carros confiáveis
+    count = 0
     annotated_frame = frame.copy()
 
     for box in results.boxes:
@@ -26,10 +27,10 @@ while True:
         cls = int(box.cls[0])
         label = model.names[cls]
 
-        # Filtra: só "car" com confiança alta
+        # Filtra só "car" com confiança alta
         if label == "car" and conf >= CONF_THRESHOLD:
 
-            count += 1  # conta apenas carros confiáveis
+            count += 1 
 
             x1, y1, x2, y2 = map(int, box.xyxy[0])
 
@@ -48,7 +49,7 @@ while True:
     # Mostra a contagem
     cv2.putText(
         annotated_frame,
-        f"Carros confiaveis: {count}",
+        f"Carros: {count}",
         (20, 40),
         cv2.FONT_HERSHEY_SIMPLEX,
         1,
@@ -56,21 +57,21 @@ while True:
         2
     )
 
-    # Define o tempo pelo número de carros confiáveis
-    if count == 1:
-        time = 5
-    elif count == 2:
-        time = 10
-    elif count == 3:
-        time = 15
-    elif count > 3:
-        time = 20
+    # Define o tempo pelo número de carros
+    if count == 2:
+        time_class = 1
+    elif count == 4:
+        time_class = 2
+    elif count == 6:
+        time_class = 3
+    elif count > 8:
+        time_class = 4
     else:
-        time = 4  # sem carros
+        time_class = 1
 
-    #arduino.write(f"{time}\n".encode())
+    arduino.write(str(time_class).encode())
 
-    cv2.imshow("Deteccao de Carros Confiaveis", annotated_frame)
+    cv2.imshow("Deteccao de Carros", annotated_frame)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
